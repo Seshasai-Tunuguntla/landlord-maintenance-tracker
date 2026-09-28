@@ -72,6 +72,21 @@ describe('properties', () => {
       .send({ joinCode: 'NOT-A-REAL-CODE' });
     expect(badJoin.status).toBe(404);
   });
+
+  it('accepts a join code typed in lowercase', async () => {
+    const landlord = await registerAndLogin({ role: 'LANDLORD' });
+    const propRes = await request(app)
+      .post('/api/properties')
+      .set('Authorization', `Bearer ${landlord.token}`)
+      .send({ address: '1 Lowercase Rd' });
+
+    const tenant = await registerAndLogin({ role: 'TENANT' });
+    const res = await request(app)
+      .post('/api/properties/join')
+      .set('Authorization', `Bearer ${tenant.token}`)
+      .send({ joinCode: propRes.body.property.joinCode.toLowerCase() });
+    expect(res.status).toBe(200);
+  });
 });
 
 describe('maintenance requests', () => {

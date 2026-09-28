@@ -10,6 +10,7 @@ export default function LandlordDashboard() {
   const [unitName, setUnitName] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [copiedId, setCopiedId] = useState(null);
 
   async function loadAll() {
     const [propData, reqData] = await Promise.all([api.listProperties(), api.listRequests()]);
@@ -29,10 +30,20 @@ export default function LandlordDashboard() {
       await api.createProperty({ address, unitName });
       setAddress('');
       setUnitName('');
-      setMessage('Property created.');
+      setMessage('Property created. Share its join code below with your tenant.');
       await loadAll();
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  async function handleCopy(property) {
+    try {
+      await navigator.clipboard.writeText(property.joinCode);
+      setCopiedId(property.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      setError('Could not copy automatically — select the code and copy it manually.');
     }
   }
 
@@ -69,12 +80,26 @@ export default function LandlordDashboard() {
 
       <section className="card">
         <h2>Your properties</h2>
-        {properties.length === 0 && <p>No properties yet.</p>}
-        <ul>
+        {properties.length === 0 && <p>No properties yet. Add one above to get a join code.</p>}
+        <ul className="property-list">
           {properties.map((p) => (
-            <li key={p.id}>
-              {p.address}
-              {p.unitName ? ` — ${p.unitName}` : ''} — join code: <code>{p.joinCode}</code>
+            <li key={p.id} className="property-item">
+              <div>
+                <strong>{p.address}</strong>
+                {p.unitName && <span className="meta"> — {p.unitName}</span>}
+                <p className="meta">
+                  {p.tenants?.length
+                    ? `Tenants: ${p.tenants.map((t) => t.name).join(', ')}`
+                    : 'No tenants yet'}
+                </p>
+              </div>
+              <div className="join-code-box">
+                <span className="join-code-label">Tenant join code</span>
+                <code className="join-code">{p.joinCode}</code>
+                <button type="button" onClick={() => handleCopy(p)}>
+                  {copiedId === p.id ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
             </li>
           ))}
         </ul>

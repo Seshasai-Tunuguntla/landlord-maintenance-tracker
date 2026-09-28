@@ -70,7 +70,10 @@ export default function TenantDashboard() {
       {!hasProperty && (
         <section className="card">
           <h2>Join your property</h2>
-          <p>Ask your landlord for the join code for your unit.</p>
+          <p>
+            Ask your landlord for your unit's join code — an 8-character code like{' '}
+            <code>A7D556BC</code> shown on their dashboard.
+          </p>
           <form onSubmit={handleJoin}>
             <input
               placeholder="Join code"

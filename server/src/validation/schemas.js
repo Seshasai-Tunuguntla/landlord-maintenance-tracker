@@ -18,7 +18,7 @@ const createPropertySchema = z.object({
 });
 
 const joinPropertySchema = z.object({
-  joinCode: z.string().trim().min(1, 'joinCode is required'),
+  joinCode: z.string().trim().toUpperCase().min(1, 'joinCode is required'),
 });
 
 const createRequestSchema = z.object({

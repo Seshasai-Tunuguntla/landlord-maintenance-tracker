@@ -10,7 +10,8 @@ services:
     runtime: node
     plan: free
     rootDir: server
-    buildCommand: npm ci && npx prisma migrate deploy
+    # Not `npm ci`: the Mac-generated lockfile omits Linux-only optional packages that jest (dev-only) pulls in.
+    buildCommand: npm install --omit=dev && npx prisma migrate deploy
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:

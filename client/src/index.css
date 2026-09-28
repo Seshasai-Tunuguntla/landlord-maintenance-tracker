@@ -153,6 +153,33 @@ button:hover {
   color: white;
 }
 
+.priority-high .badge {
+  background: #f97316;
+  color: white;
+}
+
+.priority-medium .badge {
+  background: #facc15;
+  color: #713f12;
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: -0.25rem 0 0.5rem;
+}
+
+.status-history {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
 .meta {
   font-size: 0.85rem;
   color: var(--muted);

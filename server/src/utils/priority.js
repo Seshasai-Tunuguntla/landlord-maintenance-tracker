@@ -18,10 +18,14 @@ const URGENT_KEYWORDS = [
   'broken lock',
 ];
 
-function detectPriority(title, description) {
+const SELECTABLE_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
+
+// Tenant picks LOW/MEDIUM/HIGH; urgent keywords always override to URGENT.
+function detectPriority(title, description, requestedPriority) {
   const text = `${title} ${description}`.toLowerCase();
   const isUrgent = URGENT_KEYWORDS.some((keyword) => text.includes(keyword));
-  return isUrgent ? 'URGENT' : 'NORMAL';
+  if (isUrgent) return 'URGENT';
+  return SELECTABLE_PRIORITIES.includes(requestedPriority) ? requestedPriority : 'MEDIUM';
 }
 
-module.exports = { detectPriority, URGENT_KEYWORDS };
+module.exports = { detectPriority, URGENT_KEYWORDS, SELECTABLE_PRIORITIES };

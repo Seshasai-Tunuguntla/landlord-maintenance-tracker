@@ -25,7 +25,7 @@ router.post(
   requireRole('TENANT'),
   upload.single('photo'),
   async (req, res) => {
-    const { title, description } = req.body;
+    const { title, description, priority: requestedPriority } = req.body;
     if (!title || !description) {
       return res.status(400).json({ error: 'title and description are required' });
     }
@@ -35,7 +35,7 @@ router.post(
       return res.status(400).json({ error: 'You must join a property before submitting a request' });
     }
 
-    const priority = detectPriority(title, description);
+    const priority = detectPriority(title, description, requestedPriority);
     const photoUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
     const request = await prisma.maintenanceRequest.create({
@@ -47,7 +47,7 @@ router.post(
         status: 'OPEN',
         tenantId: user.id,
         propertyId: user.propertyId,
-        statusHistory: { create: { status: 'OPEN' } },
+        statusHistory: { create: { status: 'OPEN', changedById: user.id } },
       },
       include: { statusHistory: true },
     });
@@ -58,9 +58,15 @@ router.post(
 
 // List requests, role-filtered
 router.get('/', requireAuth, async (req, res) => {
+  const statusHistoryInclude = {
+    orderBy: { changedAt: 'asc' },
+    include: { changedBy: { select: { id: true, name: true, role: true } } },
+  };
+
   if (req.user.role === 'TENANT') {
     const requests = await prisma.maintenanceRequest.findMany({
       where: { tenantId: req.user.id },
+      include: { statusHistory: statusHistoryInclude },
       orderBy: { createdAt: 'desc' },
     });
     return res.json({ requests });
@@ -72,6 +78,7 @@ router.get('/', requireAuth, async (req, res) => {
     include: {
       tenant: { select: { id: true, name: true, email: true } },
       property: { select: { id: true, address: true, unitName: true } },
+      statusHistory: statusHistoryInclude,
     },
     orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
   });
@@ -86,7 +93,10 @@ router.get('/:id', requireAuth, async (req, res) => {
     include: {
       tenant: { select: { id: true, name: true, email: true } },
       property: true,
-      statusHistory: { orderBy: { changedAt: 'asc' } },
+      statusHistory: {
+        orderBy: { changedAt: 'asc' },
+        include: { changedBy: { select: { id: true, name: true, role: true } } },
+      },
     },
   });
 
@@ -123,9 +133,14 @@ router.patch('/:id/status', requireAuth, requireRole('LANDLORD'), async (req, re
     where: { id },
     data: {
       status,
-      statusHistory: { create: { status } },
+      statusHistory: { create: { status, changedById: req.user.id } },
     },
-    include: { statusHistory: { orderBy: { changedAt: 'asc' } } },
+    include: {
+      statusHistory: {
+        orderBy: { changedAt: 'asc' },
+        include: { changedBy: { select: { id: true, name: true, role: true } } },
+      },
+    },
   });
 
   res.json({ request: updated });

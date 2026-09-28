@@ -7,6 +7,7 @@ export default function TenantDashboard() {
   const [requests, setRequests] = useState([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState('MEDIUM');
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -43,11 +44,13 @@ export default function TenantDashboard() {
       const formData = new FormData();
       formData.append('title', title);
       formData.append('description', description);
+      formData.append('priority', priority);
       if (photo) formData.append('photo', photo);
 
       await api.createRequest(formData);
       setTitle('');
       setDescription('');
+      setPriority('MEDIUM');
       setPhoto(null);
       setMessage('Request submitted.');
       await loadAll();
@@ -107,6 +110,18 @@ export default function TenantDashboard() {
                 />
               </label>
               <label>
+                Priority
+                <select value={priority} onChange={(e) => setPriority(e.target.value)}>
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
+                </select>
+              </label>
+              <p className="hint">
+                Requests mentioning things like "no heat", "gas smell", or "flood" are
+                automatically marked Urgent regardless of the priority you pick.
+              </p>
+              <label>
                 Photo (optional)
                 <input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files[0])} />
               </label>
@@ -127,6 +142,15 @@ export default function TenantDashboard() {
                   </div>
                   <p>{r.description}</p>
                   {r.photoUrl && <img src={r.photoUrl} alt={r.title} className="request-photo" />}
+                  <ul className="status-history">
+                    {r.statusHistory.map((h) => (
+                      <li key={h.id}>
+                        {h.status.replace('_', ' ')} by {h.changedBy.name} (
+                        {h.changedBy.role.toLowerCase()}) —{' '}
+                        {new Date(h.changedAt).toLocaleString()}
+                      </li>
+                    ))}
+                  </ul>
                 </li>
               ))}
             </ul>

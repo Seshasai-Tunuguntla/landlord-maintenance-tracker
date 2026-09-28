@@ -106,6 +106,14 @@ export default function LandlordDashboard() {
                   ))}
                 </select>
               </label>
+              <ul className="status-history">
+                {r.statusHistory.map((h) => (
+                  <li key={h.id}>
+                    {h.status.replace('_', ' ')} by {h.changedBy.name} (
+                    {h.changedBy.role.toLowerCase()}) — {new Date(h.changedAt).toLocaleString()}
+                  </li>
+                ))}
+              </ul>
             </li>
           ))}
         </ul>

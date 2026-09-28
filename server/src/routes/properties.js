@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const prisma = require('../prismaClient');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { createPropertySchema, joinPropertySchema } = require('../validation/schemas');
 
 const router = express.Router();
 
@@ -11,10 +12,7 @@ function generateJoinCode() {
 
 // Landlord creates a property
 router.post('/', requireAuth, requireRole('LANDLORD'), async (req, res) => {
-  const { address, unitName } = req.body;
-  if (!address) {
-    return res.status(400).json({ error: 'address is required' });
-  }
+  const { address, unitName } = createPropertySchema.parse(req.body);
 
   const property = await prisma.property.create({
     data: {
@@ -48,10 +46,7 @@ router.get('/', requireAuth, async (req, res) => {
 
 // Tenant joins a property via code
 router.post('/join', requireAuth, requireRole('TENANT'), async (req, res) => {
-  const { joinCode } = req.body;
-  if (!joinCode) {
-    return res.status(400).json({ error: 'joinCode is required' });
-  }
+  const { joinCode } = joinPropertySchema.parse(req.body);
 
   const property = await prisma.property.findUnique({ where: { joinCode } });
   if (!property) {

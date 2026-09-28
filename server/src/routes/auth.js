@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const prisma = require('../prismaClient');
 const { requireAuth } = require('../middleware/auth');
+const { registerSchema, loginSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
@@ -20,14 +21,7 @@ function toPublicUser(user) {
 }
 
 router.post('/register', async (req, res) => {
-  const { name, email, password, role } = req.body;
-
-  if (!name || !email || !password || !role) {
-    return res.status(400).json({ error: 'name, email, password, and role are required' });
-  }
-  if (!['TENANT', 'LANDLORD'].includes(role)) {
-    return res.status(400).json({ error: 'role must be TENANT or LANDLORD' });
-  }
+  const { name, email, password, role } = registerSchema.parse(req.body);
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -45,10 +39,7 @@ router.post('/register', async (req, res) => {
 });
 
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ error: 'email and password are required' });
-  }
+  const { email, password } = loginSchema.parse(req.body);
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {

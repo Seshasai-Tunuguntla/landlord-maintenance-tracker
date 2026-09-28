@@ -4,6 +4,7 @@ const path = require('path');
 const prisma = require('../prismaClient');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { detectPriority } = require('../utils/priority');
+const { createRequestSchema, updateStatusSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
@@ -14,9 +15,16 @@ const storage = multer.diskStorage({
     cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
   },
 });
-const upload = multer({ storage });
-
-const STATUSES = ['OPEN', 'IN_PROGRESS', 'RESOLVED'];
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image uploads are allowed'));
+    }
+    cb(null, true);
+  },
+});
 
 // Tenant creates a maintenance request (with optional photo)
 router.post(
@@ -25,10 +33,7 @@ router.post(
   requireRole('TENANT'),
   upload.single('photo'),
   async (req, res) => {
-    const { title, description, priority: requestedPriority } = req.body;
-    if (!title || !description) {
-      return res.status(400).json({ error: 'title and description are required' });
-    }
+    const { title, description, priority: requestedPriority } = createRequestSchema.parse(req.body);
 
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });
     if (!user.propertyId) {
@@ -88,6 +93,8 @@ router.get('/', requireAuth, async (req, res) => {
 // Get one request by id
 router.get('/:id', requireAuth, async (req, res) => {
   const id = Number(req.params.id);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid request id' });
+
   const request = await prisma.maintenanceRequest.findUnique({
     where: { id },
     include: {
@@ -114,11 +121,8 @@ router.get('/:id', requireAuth, async (req, res) => {
 // Landlord updates status
 router.patch('/:id/status', requireAuth, requireRole('LANDLORD'), async (req, res) => {
   const id = Number(req.params.id);
-  const { status } = req.body;
-
-  if (!STATUSES.includes(status)) {
-    return res.status(400).json({ error: `status must be one of ${STATUSES.join(', ')}` });
-  }
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid request id' });
+  const { status } = updateStatusSchema.parse(req.body);
 
   const request = await prisma.maintenanceRequest.findUnique({
     where: { id },

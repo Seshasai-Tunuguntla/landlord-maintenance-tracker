@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const path = require('path');
 const { ZodError } = require('zod');
 const { Prisma } = require('@prisma/client');
 const { authLimiter } = require('./middleware/rateLimit');
@@ -9,6 +8,7 @@ const { authLimiter } = require('./middleware/rateLimit');
 const authRoutes = require('./routes/auth');
 const propertyRoutes = require('./routes/properties');
 const requestRoutes = require('./routes/requests');
+const photoRoutes = require('./routes/photos');
 
 const app = express();
 
@@ -31,13 +31,13 @@ app.use(
   })
 );
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/requests', requestRoutes);
+app.use('/api/photos', photoRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
@@ -60,7 +60,7 @@ app.use((err, req, res, next) => {
   if (err.code === 'LIMIT_FILE_SIZE') {
     return res.status(400).json({ error: 'Photo must be 5MB or smaller' });
   }
-  if (err.message === 'Only image uploads are allowed') {
+  if (err.status === 400) {
     return res.status(400).json({ error: err.message });
   }
   if (err.message === 'Not allowed by CORS') {

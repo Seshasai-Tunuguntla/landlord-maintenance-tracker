@@ -1,6 +1,6 @@
 const express = require('express');
+const crypto = require('crypto');
 const multer = require('multer');
-const path = require('path');
 const prisma = require('../prismaClient');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { detectPriority } = require('../utils/priority');
@@ -8,19 +8,17 @@ const { createRequestSchema, updateStatusSchema } = require('../validation/schem
 
 const router = express.Router();
 
-const storage = multer.diskStorage({
-  destination: path.join(__dirname, '..', '..', 'uploads'),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
-  },
-});
+// No SVG: it can carry scripts that would run on our origin when the photo URL is opened.
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (!file.mimetype.startsWith('image/')) {
-      return cb(new Error('Only image uploads are allowed'));
+    if (!ALLOWED_PHOTO_TYPES.includes(file.mimetype)) {
+      const err = new Error('Photo must be a JPEG, PNG, WebP, or GIF image');
+      err.status = 400;
+      return cb(err);
     }
     cb(null, true);
   },
@@ -41,20 +39,28 @@ router.post(
     }
 
     const priority = detectPriority(title, description, requestedPriority);
-    const photoUrl = req.file ? `/uploads/${req.file.filename}` : null;
+    const photoId = req.file ? crypto.randomUUID() : null;
 
-    const request = await prisma.maintenanceRequest.create({
-      data: {
-        title,
-        description,
-        photoUrl,
-        priority,
-        status: 'OPEN',
-        tenantId: user.id,
-        propertyId: user.propertyId,
-        statusHistory: { create: { status: 'OPEN', changedById: user.id } },
-      },
-      include: { statusHistory: true },
+    const request = await prisma.$transaction(async (tx) => {
+      if (photoId) {
+        await tx.photo.create({
+          data: { id: photoId, mimeType: req.file.mimetype, data: req.file.buffer },
+        });
+      }
+      return tx.maintenanceRequest.create({
+        data: {
+          title,
+          description,
+          photoId,
+          photoUrl: photoId ? `/api/photos/${photoId}` : null,
+          priority,
+          status: 'OPEN',
+          tenantId: user.id,
+          propertyId: user.propertyId,
+          statusHistory: { create: { status: 'OPEN', changedById: user.id } },
+        },
+        include: { statusHistory: true },
+      });
     });
 
     res.status(201).json({ request });

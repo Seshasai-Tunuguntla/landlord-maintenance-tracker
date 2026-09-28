@@ -28,7 +28,7 @@ server/   Express API + Prisma schema/migrations + tests
    npm run dev         # http://localhost:5173
    ```
 
-The frontend dev server proxies `/api` and `/uploads` requests to `http://localhost:4000`, so just open http://localhost:5173.
+The frontend dev server proxies `/api` requests to `http://localhost:4000`, so just open http://localhost:5173.
 
 ## How it works
 
@@ -47,7 +47,7 @@ The frontend dev server proxies `/api` and `/uploads` requests to `http://localh
 - Request bodies are validated with [Zod](https://zod.dev) (`server/src/validation/schemas.js`) — bad input returns a `400` with a specific message instead of a raw error.
 - `helmet` sets standard security headers; CORS is restricted to the origin(s) listed in `CLIENT_ORIGIN`.
 - Login/register are rate-limited (20 requests / 15 min per IP) to slow brute-force attempts.
-- Photo uploads are limited to 5MB and must be an image MIME type.
+- Photos are limited to 5MB and to JPEG, PNG, WebP or GIF (no SVG, which can carry scripts). They are stored in the database (`Photo` table) rather than on disk, because free hosting wipes the disk on every restart, and served from `/api/photos/:id` under a random UUID.
 
 ## Testing
 
@@ -59,7 +59,7 @@ npm test
 Runs against a separate `landlord_maintenance_test` database (create it once with `createdb landlord_maintenance_test`; `npm test` applies migrations to it automatically via `pretest`). Covers:
 - `tests/priority.test.js` — unit tests for the urgent-keyword detection logic
 - `tests/auth.test.js` — register/login/me validation and error cases
-- `tests/requests.test.js` — property join flow, role-based access control, priority/urgent-override behavior, status-history + `changedBy` tracking
+- `tests/requests.test.js` — property join flow, role-based access control, priority/urgent-override behavior, status-history + `changedBy` tracking, photo storage and file-type checks
 
 You can still poke the API manually with Thunder Client/curl against the dev server on port 4000.
 
@@ -77,10 +77,8 @@ CLIENT_ORIGIN="http://localhost:5173"   # comma-separated if you need more than 
 ## Deployment
 
 - **API + database → Render.** `render.yaml` is a Blueprint: in Render choose *New → Blueprint*, pick this repo, and it creates the Postgres database and the API service together (migrations run on every deploy; `JWT_SECRET` is generated). It asks for `CLIENT_ORIGIN` — enter your Vercel URL.
-- **Frontend → Vercel.** The Vercel project is connected to this repo with **Root Directory = `client`**, so every push to `main` redeploys the site. `client/vercel.json` forwards `/api` and `/uploads` to the Render API, so the browser only ever talks to the Vercel domain. If Render gives the API a different URL than `landlord-maintenance-api.onrender.com`, update the two URLs in `client/vercel.json`.
-- On Render's free plan, uploaded photos are stored on the server's disk and are lost when the service restarts or redeploys. Moving photos to cloud storage (e.g. Cloudinary or S3) would fix that.
+- **Frontend → Vercel.** The Vercel project is connected to this repo with **Root Directory = `client`**, so every push to `main` redeploys the site. `client/vercel.json` forwards `/api` to the Render API, so the browser only ever talks to the Vercel domain. If Render gives the API a different URL than `landlord-maintenance-api.onrender.com`, update it in `client/vercel.json`.
 
 ## Not done yet
 
 - No CI pipeline running the test suite on push.
-- Photos aren't in permanent cloud storage yet (see above).

@@ -250,3 +250,63 @@ describe('maintenance requests', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('photos', () => {
+  // Smallest valid PNG: a 1x1 transparent pixel.
+  const PNG = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+    'base64'
+  );
+
+  it('stores an uploaded photo in the database and serves the same bytes back', async () => {
+    const { tenant } = await setupPropertyWithTenant();
+    const createRes = await request(app)
+      .post('/api/requests')
+      .set('Authorization', `Bearer ${tenant.token}`)
+      .field('title', 'Cracked window')
+      .field('description', 'See photo')
+      .attach('photo', PNG, { filename: 'window.png', contentType: 'image/png' });
+
+    expect(createRes.status).toBe(201);
+    const { photoUrl } = createRes.body.request;
+    expect(photoUrl).toMatch(/^\/api\/photos\/[0-9a-f-]{36}$/);
+
+    const photoRes = await request(app).get(photoUrl);
+    expect(photoRes.status).toBe(200);
+    expect(photoRes.headers['content-type']).toBe('image/png');
+    expect(Buffer.compare(photoRes.body, PNG)).toBe(0);
+  });
+
+  it('does not include photo bytes in request lists', async () => {
+    const { tenant } = await setupPropertyWithTenant();
+    await request(app)
+      .post('/api/requests')
+      .set('Authorization', `Bearer ${tenant.token}`)
+      .field('title', 'Cracked window')
+      .field('description', 'See photo')
+      .attach('photo', PNG, { filename: 'window.png', contentType: 'image/png' });
+
+    const listRes = await request(app).get('/api/requests').set('Authorization', `Bearer ${tenant.token}`);
+    expect(listRes.body.requests[0].photoUrl).toBeTruthy();
+    expect(listRes.body.requests[0].photo).toBeUndefined();
+  });
+
+  it('rejects SVG uploads', async () => {
+    const { tenant } = await setupPropertyWithTenant();
+    const res = await request(app)
+      .post('/api/requests')
+      .set('Authorization', `Bearer ${tenant.token}`)
+      .field('title', 'Test')
+      .field('description', 'Test description')
+      .attach('photo', Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'), {
+        filename: 'x.svg',
+        contentType: 'image/svg+xml',
+      });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 for an unknown photo id', async () => {
+    const res = await request(app).get('/api/photos/00000000-0000-0000-0000-000000000000');
+    expect(res.status).toBe(404);
+  });
+});

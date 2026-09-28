@@ -63,6 +63,8 @@ model MaintenanceRequest {
   title         String
   description   String
   photoUrl      String?
+  photoId       String?  @unique
+  photo         Photo?   @relation(fields: [photoId], references: [id])
   priority      Priority @default(MEDIUM)
   status        Status   @default(OPEN)
   createdAt     DateTime @default(now())
@@ -87,4 +89,14 @@ model StatusHistoryEntry {
 
   changedById Int
   changedBy   User     @relation(fields: [changedById], references: [id])
+}
+
+// Photos live in the database because the free host's disk is wiped on every restart.
+model Photo {
+  id        String   @id @default(uuid())
+  mimeType  String
+  data      Bytes
+  createdAt DateTime @default(now())
+
+  request   MaintenanceRequest?
 }

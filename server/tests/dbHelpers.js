@@ -4,6 +4,7 @@ const prisma = require('../src/prismaClient');
 async function resetDb() {
   await prisma.statusHistoryEntry.deleteMany();
   await prisma.maintenanceRequest.deleteMany();
+  await prisma.photo.deleteMany();
   await prisma.user.updateMany({ data: { propertyId: null } });
   await prisma.property.deleteMany();
   await prisma.user.deleteMany();

@@ -1,0 +1,165 @@
+:root {
+  font-family: system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+  --bg: #f5f6f8;
+  --card: #ffffff;
+  --border: #dde1e6;
+  --text: #1c1e21;
+  --muted: #6b7280;
+  --primary: #2563eb;
+  --urgent: #dc2626;
+  --urgent-bg: #fef2f2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.content {
+  flex: 1;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.auth-page {
+  max-width: 360px;
+  margin: 3rem auto;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+input,
+select,
+textarea {
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+button {
+  padding: 0.55rem 1rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  width: fit-content;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+.error {
+  color: var(--urgent);
+}
+
+.success {
+  color: #16a34a;
+}
+
+.request-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.request-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.request-item.priority-urgent {
+  border-color: var(--urgent);
+  background: var(--urgent-bg);
+}
+
+.request-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.badge {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.priority-urgent .badge {
+  background: var(--urgent);
+  color: white;
+}
+
+.meta {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.request-photo {
+  max-width: 100%;
+  border-radius: 6px;
+  margin-top: 0.5rem;
+}

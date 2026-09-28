@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TENANT
+  LANDLORD
+}
+
+enum Priority {
+  NORMAL
+  URGENT
+}
+
+enum Status {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  name       String
+  email      String   @unique
+  password   String
+  role       Role
+  createdAt  DateTime @default(now())
+
+  // Tenant: the single property they belong to
+  propertyId Int?
+  property   Property? @relation("TenantsOfProperty", fields: [propertyId], references: [id])
+
+  // Landlord: properties they own
+  ownedProperties Property[] @relation("LandlordOfProperty")
+
+  requests   MaintenanceRequest[]
+}
+
+model Property {
+  id         Int      @id @default(autoincrement())
+  address    String
+  unitName   String?
+  joinCode   String   @unique
+  createdAt  DateTime @default(now())
+
+  landlordId Int
+  landlord   User     @relation("LandlordOfProperty", fields: [landlordId], references: [id])
+
+  tenants    User[]   @relation("TenantsOfProperty")
+  requests   MaintenanceRequest[]
+}
+
+model MaintenanceRequest {
+  id            Int      @id @default(autoincrement())
+  title         String
+  description   String
+  photoUrl      String?
+  priority      Priority @default(NORMAL)
+  status        Status   @default(OPEN)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenantId      Int
+  tenant        User     @relation(fields: [tenantId], references: [id])
+
+  propertyId    Int
+  property      Property @relation(fields: [propertyId], references: [id])
+
+  statusHistory StatusHistoryEntry[]
+}
+
+model StatusHistoryEntry {
+  id          Int      @id @default(autoincrement())
+  status      Status
+  changedAt   DateTime @default(now())
+
+  requestId   Int
+  request     MaintenanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}

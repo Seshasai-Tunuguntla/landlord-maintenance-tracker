@@ -1,0 +1,13 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://landlord-maintenance-api.onrender.com/api/:path*"
+    },
+    {
+      "source": "/uploads/:path*",
+      "destination": "https://landlord-maintenance-api.onrender.com/uploads/:path*"
+    },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

@@ -72,7 +72,13 @@ CLIENT_ORIGIN="http://localhost:5173"   # comma-separated if you need more than 
 
 `server/.env.test` holds the equivalent config for the test database and is loaded automatically by `npm test`.
 
+## Deployment
+
+- **API + database → Render.** `render.yaml` is a Blueprint: in Render choose *New → Blueprint*, pick this repo, and it creates the Postgres database and the API service together (migrations run on every deploy; `JWT_SECRET` is generated). It asks for `CLIENT_ORIGIN` — enter your Vercel URL.
+- **Frontend → Vercel.** Import the repo with **Root Directory = `client`**. `client/vercel.json` forwards `/api` and `/uploads` to the Render API, so the browser only ever talks to the Vercel domain. If Render gives the API a different URL than `landlord-maintenance-api.onrender.com`, update the two URLs in `client/vercel.json`.
+- On Render's free plan, uploaded photos are stored on the server's disk and are lost when the service restarts or redeploys. Moving photos to cloud storage (e.g. Cloudinary or S3) would fix that.
+
 ## Not done yet
 
-- Not deployed — still local-only. Plan is Render (or similar) for the API + a hosted Postgres (Render/Neon/Supabase) + Vercel for the client.
 - No CI pipeline running the test suite on push.
+- Photos aren't in permanent cloud storage yet (see above).

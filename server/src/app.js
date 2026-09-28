@@ -12,6 +12,9 @@ const requestRoutes = require('./routes/requests');
 
 const app = express();
 
+// Hosted behind one reverse proxy (Render); needed so req.ip and the rate limiter see the real client.
+app.set('trust proxy', 1);
+
 const allowedOrigins = (process.env.CLIENT_ORIGIN || '')
   .split(',')
   .map((origin) => origin.trim())

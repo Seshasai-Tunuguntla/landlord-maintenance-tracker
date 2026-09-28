@@ -61,6 +61,8 @@ Runs against a separate `landlord_maintenance_test` database (create it once wit
 - `tests/auth.test.js` — register/login/me validation and error cases
 - `tests/requests.test.js` — property join flow, role-based access control, priority/urgent-override behavior, status-history + `changedBy` tracking, photo storage and file-type checks
 
+GitHub Actions (`.github/workflows/ci.yml`) also runs these tests against a throwaway Postgres, and lints and builds the client, on every push and pull request.
+
 You can still poke the API manually with Thunder Client/curl against the dev server on port 4000.
 
 ## Environment variables (server/.env)
@@ -79,7 +81,3 @@ CLIENT_ORIGIN="http://localhost:5173"   # comma-separated if you need more than 
 - **Database → Neon.** Free Postgres that doesn't expire (Render's free database is deleted after 30 days). Use the **direct** (non-pooled) connection string as `DATABASE_URL`.
 - **API → Render.** `render.yaml` is a Blueprint: in Render choose *New → Blueprint* and pick this repo. It asks for `DATABASE_URL` (the Neon string) and `CLIENT_ORIGIN` (your Vercel URL); `JWT_SECRET` is generated. Migrations run on every deploy, and pushes that touch `server/` redeploy automatically.
 - **Frontend → Vercel.** The Vercel project is connected to this repo with **Root Directory = `client`**, so every push to `main` redeploys the site. `client/vercel.json` forwards `/api` to the Render API, so the browser only ever talks to the Vercel domain. If Render gives the API a different URL than `landlord-maintenance-api.onrender.com`, update it in `client/vercel.json`.
-
-## Not done yet
-
-- No CI pipeline running the test suite on push.

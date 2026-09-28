@@ -76,7 +76,8 @@ CLIENT_ORIGIN="http://localhost:5173"   # comma-separated if you need more than 
 
 ## Deployment
 
-- **API + database → Render.** `render.yaml` is a Blueprint: in Render choose *New → Blueprint*, pick this repo, and it creates the Postgres database and the API service together (migrations run on every deploy; `JWT_SECRET` is generated). It asks for `CLIENT_ORIGIN` — enter your Vercel URL.
+- **Database → Neon.** Free Postgres that doesn't expire (Render's free database is deleted after 30 days). Use the **direct** (non-pooled) connection string as `DATABASE_URL`.
+- **API → Render.** `render.yaml` is a Blueprint: in Render choose *New → Blueprint* and pick this repo. It asks for `DATABASE_URL` (the Neon string) and `CLIENT_ORIGIN` (your Vercel URL); `JWT_SECRET` is generated. Migrations run on every deploy, and pushes that touch `server/` redeploy automatically.
 - **Frontend → Vercel.** The Vercel project is connected to this repo with **Root Directory = `client`**, so every push to `main` redeploys the site. `client/vercel.json` forwards `/api` to the Render API, so the browser only ever talks to the Vercel domain. If Render gives the API a different URL than `landlord-maintenance-api.onrender.com`, update it in `client/vercel.json`.
 
 ## Not done yet

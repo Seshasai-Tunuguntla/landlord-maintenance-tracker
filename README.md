@@ -2,6 +2,8 @@
 
 Full-stack app: React (Vite) frontend, Node/Express backend, PostgreSQL database via Prisma.
 
+**Live demo:** https://landlord-maintenance-tracker.vercel.app (the free API sleeps when idle, so the first request can take ~50s)
+
 ## Project structure
 
 ```
@@ -75,7 +77,7 @@ CLIENT_ORIGIN="http://localhost:5173"   # comma-separated if you need more than 
 ## Deployment
 
 - **API + database → Render.** `render.yaml` is a Blueprint: in Render choose *New → Blueprint*, pick this repo, and it creates the Postgres database and the API service together (migrations run on every deploy; `JWT_SECRET` is generated). It asks for `CLIENT_ORIGIN` — enter your Vercel URL.
-- **Frontend → Vercel.** Import the repo with **Root Directory = `client`**. `client/vercel.json` forwards `/api` and `/uploads` to the Render API, so the browser only ever talks to the Vercel domain. If Render gives the API a different URL than `landlord-maintenance-api.onrender.com`, update the two URLs in `client/vercel.json`.
+- **Frontend → Vercel.** The Vercel project is connected to this repo with **Root Directory = `client`**, so every push to `main` redeploys the site. `client/vercel.json` forwards `/api` and `/uploads` to the Render API, so the browser only ever talks to the Vercel domain. If Render gives the API a different URL than `landlord-maintenance-api.onrender.com`, update the two URLs in `client/vercel.json`.
 - On Render's free plan, uploaded photos are stored on the server's disk and are lost when the service restarts or redeploys. Moving photos to cloud storage (e.g. Cloudinary or S3) would fix that.
 
 ## Not done yet

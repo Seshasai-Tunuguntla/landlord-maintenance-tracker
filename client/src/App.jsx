@@ -4,15 +4,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import TenantDashboard from './pages/TenantDashboard';
 import LandlordDashboard from './pages/LandlordDashboard';
-
-function Loading() {
-  return (
-    <div className="loading" role="status">
-      <p>Loading…</p>
-      <p className="muted">The free server can take up to a minute to wake up.</p>
-    </div>
-  );
-}
+import Loading from './components/Loading';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();

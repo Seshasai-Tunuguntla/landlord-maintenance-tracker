@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import RequestCard from '../components/RequestCard';
+import Loading from '../components/Loading';
 import { PRIORITY_LABELS } from '../labels';
 
 const SELECTABLE_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
@@ -17,6 +18,7 @@ export default function TenantDashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [loaded, setLoaded] = useState(false);
 
   async function loadAll() {
     const [propData, reqData] = await Promise.all([api.listProperties(), api.listRequests()]);
@@ -25,7 +27,9 @@ export default function TenantDashboard() {
   }
 
   useEffect(() => {
-    loadAll().catch((err) => setError(err.message));
+    loadAll()
+      .catch((err) => setError(err.message))
+      .finally(() => setLoaded(true));
   }, []);
 
   async function handleJoin(e) {
@@ -70,6 +74,8 @@ export default function TenantDashboard() {
   }
 
   const property = properties[0];
+
+  if (!loaded) return <Loading />;
 
   if (!property) {
     return (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import RequestCard from '../components/RequestCard';
+import Loading from '../components/Loading';
 
 function summarize(requests, properties) {
   if (properties.length === 0) return 'Add your first property, then share its join code with your tenant.';
@@ -19,6 +20,7 @@ export default function LandlordDashboard() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [copiedId, setCopiedId] = useState(null);
+  const [loaded, setLoaded] = useState(false);
 
   async function loadAll() {
     const [propData, reqData] = await Promise.all([api.listProperties(), api.listRequests()]);
@@ -27,7 +29,9 @@ export default function LandlordDashboard() {
   }
 
   useEffect(() => {
-    loadAll().catch((err) => setError(err.message));
+    loadAll()
+      .catch((err) => setError(err.message))
+      .finally(() => setLoaded(true));
   }, []);
 
   async function handleCreateProperty(e) {
@@ -64,6 +68,8 @@ export default function LandlordDashboard() {
       setError(err.message);
     }
   }
+
+  if (!loaded) return <Loading />;
 
   return (
     <div className="page">

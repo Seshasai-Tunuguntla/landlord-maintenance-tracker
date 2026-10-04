@@ -108,18 +108,24 @@ code {
 }
 
 .topbar {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.8rem 1.5rem;
-  background: var(--navy);
-  color: #fff;
+  padding: 0.8rem 1.5rem calc(0.8rem + 6px);
+  background: var(--surface);
+  color: var(--ink);
 }
 
-.topbar :focus-visible {
-  outline-color: var(--yellow);
+/* The same hazard tape that marks urgent tickets runs under the header. */
+.topbar::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 6px;
+  background: repeating-linear-gradient(135deg, var(--yellow) 0 10px, var(--navy) 10px 20px);
 }
 
 .brand {
@@ -132,7 +138,7 @@ code {
 }
 
 .brand-icon {
-  color: var(--yellow);
+  color: var(--teal);
 }
 
 .user-info {
@@ -150,7 +156,8 @@ code {
   font-weight: 600;
   padding: 0.15rem 0.6rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--teal-tint);
+  color: var(--teal-hover);
 }
 
 .content {
@@ -198,15 +205,15 @@ button:disabled {
 
 .btn-ghost {
   padding: 0.35rem 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.45);
+  border: 1px solid var(--field-line);
   border-radius: 8px;
   background: transparent;
-  color: #fff;
-  font-weight: 500;
+  color: var(--ink);
+  font-weight: 600;
 }
 
 .btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--slate-tint);
 }
 
 .form {

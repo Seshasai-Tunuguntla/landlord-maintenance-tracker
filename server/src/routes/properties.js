@@ -1,14 +1,11 @@
 const express = require('express');
-const crypto = require('crypto');
 const prisma = require('../prismaClient');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { createPropertySchema, joinPropertySchema } = require('../validation/schemas');
+const { generateJoinCode } = require('../utils/joinCode');
+const { isDemoEmail } = require('../demo/demo');
 
 const router = express.Router();
-
-function generateJoinCode() {
-  return crypto.randomBytes(4).toString('hex').toUpperCase(); // e.g. "A1B2C3D4"
-}
 
 // Landlord creates a property
 router.post('/', requireAuth, requireRole('LANDLORD'), async (req, res) => {
@@ -48,9 +45,20 @@ router.get('/', requireAuth, async (req, res) => {
 router.post('/join', requireAuth, requireRole('TENANT'), async (req, res) => {
   const { joinCode } = joinPropertySchema.parse(req.body);
 
-  const property = await prisma.property.findUnique({ where: { joinCode } });
-  if (!property) {
+  if (isDemoEmail(req.user.email)) {
+    return res.status(403).json({ error: "The demo tenant can't join other properties. Create your own account to try joining." });
+  }
+
+  const found = await prisma.property.findUnique({
+    where: { joinCode },
+    include: { landlord: { select: { email: true } } },
+  });
+  if (!found) {
     return res.status(404).json({ error: 'Invalid join code' });
+  }
+  const { landlord, ...property } = found;
+  if (isDemoEmail(landlord.email)) {
+    return res.status(403).json({ error: 'That join code belongs to the demo. Create a landlord account to get your own.' });
   }
 
   await prisma.user.update({

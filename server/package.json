@@ -7,6 +7,7 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "postinstall": "prisma generate",
+    "demo:reset": "node scripts/resetDemo.js",
     "pretest": "node -e \"require('dotenv').config({path:'.env.test'});require('child_process').execSync('npx prisma migrate deploy',{stdio:'inherit'})\"",
     "test": "jest --runInBand"
   },

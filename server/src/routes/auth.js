@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const prisma = require('../prismaClient');
 const { requireAuth } = require('../middleware/auth');
 const { registerSchema, loginSchema } = require('../validation/schemas');
+const { isDemoEmail, resetDemoDataIfStale } = require('../demo/demo');
 
 const router = express.Router();
 
@@ -49,6 +50,12 @@ router.post('/login', async (req, res) => {
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) {
     return res.status(401).json({ error: 'Invalid email or password' });
+  }
+
+  if (isDemoEmail(email)) {
+    await resetDemoDataIfStale(prisma);
+    const fresh = await prisma.user.findUnique({ where: { email } });
+    return res.json({ token: signToken(fresh), user: toPublicUser(fresh) });
   }
 
   const token = signToken(user);

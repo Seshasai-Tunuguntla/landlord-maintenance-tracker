@@ -2,7 +2,7 @@
 
 Full-stack app: React (Vite) frontend, Node/Express backend, PostgreSQL database via Prisma.
 
-**Live demo:** https://landlord-maintenance-tracker.vercel.app (the free API sleeps when idle, so the first request can take ~50s)
+**Live demo:** https://landlord-maintenance-tracker.vercel.app. Click **Try as a landlord** or **Try as a tenant** on the login page to explore with demo data, no sign-up needed. The free API sleeps when idle, so the first request can take ~50s.
 
 ## Project structure
 

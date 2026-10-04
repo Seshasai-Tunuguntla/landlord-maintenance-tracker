@@ -604,6 +604,88 @@ input[type='file']::file-selector-button {
   text-transform: uppercase;
 }
 
+/* Landlord filters and paging */
+
+.filters {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+}
+
+.filter-label {
+  width: 4.5rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.segmented {
+  display: flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--field-line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.segment {
+  padding: 0.35rem 0.8rem;
+  border: none;
+  border-right: 1px solid var(--field-line);
+  background: transparent;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.segment:last-child {
+  border-right: none;
+}
+
+.segment:hover {
+  background: var(--slate-tint);
+}
+
+.segment:focus-visible {
+  outline-offset: -3px;
+}
+
+.segment[aria-pressed='true'] {
+  background: var(--navy);
+  color: #fff;
+}
+
+.btn-more {
+  display: block;
+  width: 100%;
+  margin-top: 0.9rem;
+  padding: 0.65rem;
+  border: 1px dashed var(--field-line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.btn-more:hover:not(:disabled) {
+  background: var(--slate-tint);
+}
+
+.btn-link {
+  margin-top: 0.4rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--teal);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
 /* Request tickets */
 
 .ticket-list {

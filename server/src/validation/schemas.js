@@ -27,6 +27,13 @@ const createRequestSchema = z.object({
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
 });
 
+const listRequestsQuerySchema = z.object({
+  status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED']).optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+});
+
 const updateStatusSchema = z.object({
   status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED'], {
     message: 'status must be one of OPEN, IN_PROGRESS, RESOLVED',
@@ -39,5 +46,6 @@ module.exports = {
   createPropertySchema,
   joinPropertySchema,
   createRequestSchema,
+  listRequestsQuerySchema,
   updateStatusSchema,
 };

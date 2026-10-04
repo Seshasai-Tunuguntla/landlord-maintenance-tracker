@@ -5,6 +5,7 @@ import Loading from '../components/Loading';
 import { PRIORITY_LABELS } from '../labels';
 
 const SELECTABLE_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
+const PAGE_SIZE = 20;
 
 export default function TenantDashboard() {
   const [properties, setProperties] = useState([]);
@@ -19,11 +20,31 @@ export default function TenantDashboard() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  async function loadRequests(pageToLoad = 1) {
+    const data = await api.listRequests({ page: pageToLoad, pageSize: PAGE_SIZE });
+    setRequests((current) => (pageToLoad === 1 ? data.requests : [...current, ...data.requests]));
+    setTotal(data.total);
+    setPage(pageToLoad);
+  }
 
   async function loadAll() {
-    const [propData, reqData] = await Promise.all([api.listProperties(), api.listRequests()]);
+    const [propData] = await Promise.all([api.listProperties(), loadRequests(1)]);
     setProperties(propData.properties);
-    setRequests(reqData.requests);
+  }
+
+  async function handleShowMore() {
+    setLoadingMore(true);
+    try {
+      await loadRequests(page + 1);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoadingMore(false);
+    }
   }
 
   useEffect(() => {
@@ -184,11 +205,18 @@ export default function TenantDashboard() {
               <p>Nothing reported yet. Use the form to tell your landlord about a problem.</p>
             </div>
           ) : (
-            <ul className="ticket-list">
-              {requests.map((r) => (
-                <RequestCard key={r.id} request={r} />
-              ))}
-            </ul>
+            <>
+              <ul className="ticket-list">
+                {requests.map((r) => (
+                  <RequestCard key={r.id} request={r} />
+                ))}
+              </ul>
+              {requests.length < total && (
+                <button type="button" className="btn-more" onClick={handleShowMore} disabled={loadingMore}>
+                  {loadingMore ? 'Loading…' : `Show more (${total - requests.length} left)`}
+                </button>
+              )}
+            </>
           )}
         </section>
       </div>

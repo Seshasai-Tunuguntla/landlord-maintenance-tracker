@@ -310,3 +310,101 @@ describe('photos', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('status rules', () => {
+  async function createRequest(tenant) {
+    const res = await request(app)
+      .post('/api/requests')
+      .set('Authorization', `Bearer ${tenant.token}`)
+      .field('title', 'Leaky faucet')
+      .field('description', 'Drips slowly');
+    return res.body.request.id;
+  }
+
+  function setStatus(landlord, id, status) {
+    return request(app)
+      .patch(`/api/requests/${id}/status`)
+      .set('Authorization', `Bearer ${landlord.token}`)
+      .send({ status });
+  }
+
+  it('rejects setting the status a request already has, without adding history', async () => {
+    const { landlord, tenant } = await setupPropertyWithTenant();
+    const id = await createRequest(tenant);
+
+    const res = await setStatus(landlord, id, 'OPEN');
+    expect(res.status).toBe(409);
+    expect(await prisma.statusHistoryEntry.count({ where: { requestId: id } })).toBe(1);
+  });
+
+  it('allows reopening a resolved request and records it in the history', async () => {
+    const { landlord, tenant } = await setupPropertyWithTenant();
+    const id = await createRequest(tenant);
+
+    expect((await setStatus(landlord, id, 'RESOLVED')).status).toBe(200);
+    const reopened = await setStatus(landlord, id, 'OPEN');
+    expect(reopened.status).toBe(200);
+    expect(reopened.body.request.statusHistory.map((h) => h.status)).toEqual(['OPEN', 'RESOLVED', 'OPEN']);
+  });
+});
+
+describe('listing filters and paging', () => {
+  async function report(tenant, title, description, priority = 'LOW') {
+    const res = await request(app)
+      .post('/api/requests')
+      .set('Authorization', `Bearer ${tenant.token}`)
+      .field('title', title)
+      .field('description', description)
+      .field('priority', priority);
+    return res.body.request.id;
+  }
+
+  function list(user, query = '') {
+    return request(app).get(`/api/requests${query}`).set('Authorization', `Bearer ${user.token}`);
+  }
+
+  it('filters a landlord list by priority and status', async () => {
+    const { landlord, tenant } = await setupPropertyWithTenant();
+    await report(tenant, 'No heat', 'Radiators are cold');
+    const lowId = await report(tenant, 'Loose handle', 'Cabinet handle is loose');
+    await request(app)
+      .patch(`/api/requests/${lowId}/status`)
+      .set('Authorization', `Bearer ${landlord.token}`)
+      .send({ status: 'RESOLVED' });
+
+    const urgent = await list(landlord, '?priority=URGENT');
+    expect(urgent.body.requests.map((r) => r.title)).toEqual(['No heat']);
+
+    const resolved = await list(landlord, '?status=RESOLVED');
+    expect(resolved.body.requests.map((r) => r.title)).toEqual(['Loose handle']);
+  });
+
+  it('pages through results without repeating any', async () => {
+    const { landlord, tenant } = await setupPropertyWithTenant();
+    for (const n of [1, 2, 3]) await report(tenant, `Issue ${n}`, 'Details');
+
+    const first = await list(landlord, '?pageSize=2&page=1');
+    const second = await list(landlord, '?pageSize=2&page=2');
+    expect(first.body.total).toBe(3);
+    expect(first.body.requests).toHaveLength(2);
+    expect(second.body.requests).toHaveLength(1);
+    const ids = [...first.body.requests, ...second.body.requests].map((r) => r.id);
+    expect(new Set(ids).size).toBe(3);
+  });
+
+  it("keeps the landlord's open and urgent counts independent of filters", async () => {
+    const { landlord, tenant } = await setupPropertyWithTenant();
+    await report(tenant, 'No heat', 'Radiators are cold');
+    await report(tenant, 'Loose handle', 'Cabinet handle is loose');
+
+    const res = await list(landlord, '?status=RESOLVED');
+    expect(res.body.requests).toHaveLength(0);
+    expect(res.body.summary).toEqual({ open: 2, urgent: 1 });
+  });
+
+  it('rejects an unknown filter value', async () => {
+    const { landlord } = await setupPropertyWithTenant();
+    const res = await list(landlord, '?status=BOGUS');
+    expect(res.status).toBe(400);
+  });
+});

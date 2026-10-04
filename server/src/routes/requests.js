@@ -4,12 +4,14 @@ const multer = require('multer');
 const prisma = require('../prismaClient');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { detectPriority } = require('../utils/priority');
-const { createRequestSchema, updateStatusSchema } = require('../validation/schemas');
+const { createRequestSchema, listRequestsQuerySchema, updateStatusSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
 // No SVG: it can carry scripts that would run on our origin when the photo URL is opened.
 const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+const STATUS_WORDS = { OPEN: 'open', IN_PROGRESS: 'in progress', RESOLVED: 'resolved' };
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -67,33 +69,53 @@ router.post(
   }
 );
 
-// List requests, role-filtered
-router.get('/', requireAuth, async (req, res) => {
-  const statusHistoryInclude = {
-    orderBy: { changedAt: 'asc' },
-    include: { changedBy: { select: { id: true, name: true, role: true } } },
-  };
+const statusHistoryInclude = {
+  orderBy: { changedAt: 'asc' },
+  include: { changedBy: { select: { id: true, name: true, role: true } } },
+};
 
-  if (req.user.role === 'TENANT') {
-    const requests = await prisma.maintenanceRequest.findMany({
-      where: { tenantId: req.user.id },
-      include: { statusHistory: statusHistoryInclude },
-      orderBy: { createdAt: 'desc' },
-    });
-    return res.json({ requests });
+// List requests, scoped to the user's role, with optional status/priority filters and paging.
+router.get('/', requireAuth, async (req, res) => {
+  const { status, priority, page, pageSize } = listRequestsQuerySchema.parse(req.query);
+  const isTenant = req.user.role === 'TENANT';
+
+  // Tenants see what they filed; landlords see everything on properties they own.
+  const scope = isTenant ? { tenantId: req.user.id } : { property: { landlordId: req.user.id } };
+  const where = { ...scope, ...(status && { status }), ...(priority && { priority }) };
+
+  const [requests, total] = await prisma.$transaction([
+    prisma.maintenanceRequest.findMany({
+      where,
+      include: isTenant
+        ? { statusHistory: statusHistoryInclude }
+        : {
+            tenant: { select: { id: true, name: true, email: true } },
+            property: { select: { id: true, address: true, unitName: true } },
+            statusHistory: statusHistoryInclude,
+          },
+      // id breaks ties so paging never repeats or skips a request.
+      orderBy: isTenant
+        ? [{ createdAt: 'desc' }, { id: 'desc' }]
+        : [{ priority: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.maintenanceRequest.count({ where }),
+  ]);
+
+  const body = { requests, total, page, pageSize };
+
+  // The landlord's headline counts ignore filters and paging.
+  if (!isTenant) {
+    const unresolved = { ...scope, status: { not: 'RESOLVED' } };
+    const [open, urgent] = await prisma.$transaction([
+      prisma.maintenanceRequest.count({ where: unresolved }),
+      prisma.maintenanceRequest.count({ where: { ...unresolved, priority: 'URGENT' } }),
+    ]);
+    body.summary = { open, urgent };
   }
 
-  // LANDLORD: requests across all properties they own
-  const requests = await prisma.maintenanceRequest.findMany({
-    where: { property: { landlordId: req.user.id } },
-    include: {
-      tenant: { select: { id: true, name: true, email: true } },
-      property: { select: { id: true, address: true, unitName: true } },
-      statusHistory: statusHistoryInclude,
-    },
-    orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-  });
-  res.json({ requests });
+  res.json(body);
 });
 
 // Get one request by id
@@ -106,10 +128,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     include: {
       tenant: { select: { id: true, name: true, email: true } },
       property: true,
-      statusHistory: {
-        orderBy: { changedAt: 'asc' },
-        include: { changedBy: { select: { id: true, name: true, role: true } } },
-      },
+      statusHistory: statusHistoryInclude,
     },
   });
 
@@ -139,20 +158,23 @@ router.patch('/:id/status', requireAuth, requireRole('LANDLORD'), async (req, re
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  const updated = await prisma.maintenanceRequest.update({
-    where: { id },
-    data: {
-      status,
-      statusHistory: { create: { status, changedById: req.user.id } },
-    },
-    include: {
-      statusHistory: {
-        orderBy: { changedAt: 'asc' },
-        include: { changedBy: { select: { id: true, name: true, role: true } } },
-      },
-    },
+  // Any move to a *different* status is allowed, including reopening a resolved request,
+  // because repairs do come back. Repeating the current status is rejected so the history
+  // only records real changes. The conditional update makes that check atomic, so two
+  // clicks at once can't both get through.
+  const updated = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.maintenanceRequest.updateMany({
+      where: { id, status: { not: status } },
+      data: { status },
+    });
+    if (count === 0) return null;
+    await tx.statusHistoryEntry.create({ data: { requestId: id, status, changedById: req.user.id } });
+    return tx.maintenanceRequest.findUnique({ where: { id }, include: { statusHistory: statusHistoryInclude } });
   });
 
+  if (!updated) {
+    return res.status(409).json({ error: `This request is already ${STATUS_WORDS[status]}.` });
+  }
   res.json({ request: updated });
 });
 

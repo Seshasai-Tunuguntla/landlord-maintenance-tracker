@@ -33,7 +33,10 @@ export const api = {
   joinProperty: (joinCode) => request('/properties/join', { method: 'POST', body: { joinCode } }),
 
   createRequest: (formData) => request('/requests', { method: 'POST', body: formData, isFormData: true }),
-  listRequests: () => request('/requests'),
+  listRequests: (params = {}) => {
+    const query = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
+    return request(`/requests${query ? `?${query}` : ''}`);
+  },
   getRequest: (id) => request(`/requests/${id}`),
   updateRequestStatus: (id, status) =>
     request(`/requests/${id}/status`, { method: 'PATCH', body: { status } }),

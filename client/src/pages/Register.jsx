@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import AuthLayout from '../components/AuthLayout';
 
 const ROLES = [
   { value: 'TENANT', title: "I'm a tenant", detail: 'Report problems in my home' },
@@ -31,58 +32,56 @@ export default function Register() {
   }
 
   return (
-    <div className="auth">
-      <div className="panel">
-        <h1>Create an account</h1>
-        <form onSubmit={handleSubmit} className="form">
-          <fieldset className="role-picker">
-            <legend className="visually-hidden">Account type</legend>
-            {ROLES.map((r) => (
-              <label key={r.value} className="role-option">
-                <input
-                  type="radio"
-                  name="role"
-                  value={r.value}
-                  checked={role === r.value}
-                  onChange={() => setRole(r.value)}
-                />
-                <span className="role-option-body">
-                  <strong>{r.title}</strong>
-                  <span>{r.detail}</span>
-                </span>
-              </label>
-            ))}
-          </fieldset>
-          <label className="field">
-            Name
-            <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required />
-          </label>
-          <label className="field">
-            Email
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
-          </label>
-          <label className="field">
-            <span>
-              Password <span className="optional">(at least 8 characters)</span>
-            </span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              minLength={8}
-              autoComplete="new-password"
-              required
-            />
-          </label>
-          {error && <p className="flash flash-error" role="alert">{error}</p>}
-          <button type="submit" className="btn btn-block" disabled={submitting}>
-            {submitting ? 'Creating account…' : 'Create account'}
-          </button>
-        </form>
-        <p className="auth-switch">
-          Already have an account? <Link to="/login">Log in</Link>
-        </p>
-      </div>
-    </div>
+    <AuthLayout>
+      <h1>Create an account</h1>
+      <form onSubmit={handleSubmit} className="form">
+        <fieldset className="role-picker">
+          <legend className="visually-hidden">Account type</legend>
+          {ROLES.map((r) => (
+            <label key={r.value} className="role-option">
+              <input
+                type="radio"
+                name="role"
+                value={r.value}
+                checked={role === r.value}
+                onChange={() => setRole(r.value)}
+              />
+              <span className="role-option-body">
+                <strong>{r.title}</strong>
+                <span>{r.detail}</span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        <label className="field">
+          Name
+          <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required />
+        </label>
+        <label className="field">
+          Email
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
+        </label>
+        <label className="field">
+          <span>
+            Password <span className="optional">(at least 8 characters)</span>
+          </span>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            minLength={8}
+            autoComplete="new-password"
+            required
+          />
+        </label>
+        {error && <p className="flash flash-error" role="alert">{error}</p>}
+        <button type="submit" className="btn btn-block" disabled={submitting}>
+          {submitting ? 'Creating account…' : 'Create account'}
+        </button>
+      </form>
+      <p className="auth-switch">
+        Already have an account? <Link to="/login">Log in</Link>
+      </p>
+    </AuthLayout>
   );
 }

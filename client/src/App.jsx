@@ -34,7 +34,7 @@ function WrenchIcon() {
 }
 
 export default function App() {
-  const { user, logout, loading } = useAuth();
+  const { user, logout } = useAuth();
 
   return (
     <div className="app">
@@ -55,22 +55,20 @@ export default function App() {
       </header>
 
       <main className="content">
-        {loading ? (
-          <Loading />
-        ) : (
-          <Routes>
-            <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-            <Route path="/register" element={user ? <Navigate to="/" replace /> : <Register />} />
-            <Route
-              path="/"
-              element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              }
-            />
-          </Routes>
-        )}
+        {/* Login and sign-up render at once instead of waiting for the "who's logged in?" check,
+            which can take up to a minute if the free API is asleep. Only the dashboard waits. */}
+        <Routes>
+          <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+          <Route path="/register" element={user ? <Navigate to="/" replace /> : <Register />} />
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            }
+          />
+        </Routes>
       </main>
     </div>
   );

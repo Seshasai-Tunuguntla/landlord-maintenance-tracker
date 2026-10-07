@@ -1,9 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const { ZodError } = require('zod');
 const { Prisma } = require('@prisma/client');
-const { authLimiter } = require('./middleware/rateLimit');
 
 const authRoutes = require('./routes/auth');
 const propertyRoutes = require('./routes/properties');
@@ -12,8 +12,11 @@ const photoRoutes = require('./routes/photos');
 
 const app = express();
 
-// Hosted behind one reverse proxy (Render); needed so req.ip and the rate limiter see the real client.
-app.set('trust proxy', 1);
+// On Render, X-Forwarded-For arrives as "<client>, <Cloudflare edge>, <Render proxy>" and the socket
+// is another Render proxy (measured Oct 2026). Trusting 3 hops makes req.ip the address that
+// connected to Cloudflare, which a caller can't forge. Traffic proxied by Vercel shows up as a
+// Vercel address, which is why account protection doesn't key on IPs (see middleware/rateLimit.js).
+app.set('trust proxy', 3);
 
 const allowedOrigins = (process.env.CLIENT_ORIGIN || '')
   .split(',')
@@ -31,23 +34,11 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(cookieParser());
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
-// TEMPORARY: shows the caller how the server sees their own request; removed after checking proxy setup.
-app.get('/api/debug/ip', (req, res) =>
-  res.json({
-    ip: req.ip,
-    ips: req.ips,
-    xForwardedFor: req.headers['x-forwarded-for'] ?? null,
-    xRealIp: req.headers['x-real-ip'] ?? null,
-    cfConnectingIp: req.headers['cf-connecting-ip'] ?? null,
-    trueClientIp: req.headers['true-client-ip'] ?? null,
-    xVercelForwardedFor: req.headers['x-vercel-forwarded-for'] ?? null,
-  })
-);
-
-app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/photos', photoRoutes);

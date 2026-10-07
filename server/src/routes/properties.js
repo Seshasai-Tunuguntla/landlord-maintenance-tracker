@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require('../prismaClient');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { joinLimiter } = require('../middleware/rateLimit');
 const { createPropertySchema, joinPropertySchema } = require('../validation/schemas');
 const { generateJoinCode } = require('../utils/joinCode');
 const { isDemoEmail } = require('../demo/demo');
@@ -42,7 +43,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // Tenant joins a property via code
-router.post('/join', requireAuth, requireRole('TENANT'), async (req, res) => {
+router.post('/join', requireAuth, requireRole('TENANT'), joinLimiter, async (req, res) => {
   const { joinCode } = joinPropertySchema.parse(req.body);
 
   if (isDemoEmail(req.user.email)) {

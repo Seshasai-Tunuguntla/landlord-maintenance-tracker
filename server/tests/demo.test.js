@@ -1,6 +1,6 @@
 const request = require('supertest');
 const app = require('../src/app');
-const { resetDb, prisma } = require('./dbHelpers');
+const { resetDb, prisma, cookieFrom } = require('./dbHelpers');
 const { DEMO_LANDLORD, DEMO_TENANT, resetDemoData } = require('../src/demo/demo');
 
 beforeEach(async () => {
@@ -14,7 +14,7 @@ afterAll(async () => {
 
 async function login(email, password = 'password123') {
   const res = await request(app).post('/api/auth/login').send({ email, password });
-  return res.body.token;
+  return cookieFrom(res);
 }
 
 describe('demo data', () => {
@@ -33,17 +33,17 @@ describe('demo data', () => {
   });
 
   it('undoes visitor changes when reset', async () => {
-    const landlordToken = await login(DEMO_LANDLORD.email);
-    const tenantToken = await login(DEMO_TENANT.email);
+    const landlordCookie = await login(DEMO_LANDLORD.email);
+    const tenantCookie = await login(DEMO_TENANT.email);
 
     const urgent = await prisma.maintenanceRequest.findFirst({ where: { priority: 'URGENT' } });
     await request(app)
       .patch(`/api/requests/${urgent.id}/status`)
-      .set('Authorization', `Bearer ${landlordToken}`)
+      .set('Cookie', landlordCookie)
       .send({ status: 'RESOLVED' });
     await request(app)
       .post('/api/requests')
-      .set('Authorization', `Bearer ${tenantToken}`)
+      .set('Cookie', tenantCookie)
       .field('title', 'Junk')
       .field('description', 'Visitor test');
 
@@ -61,7 +61,7 @@ describe('demo data', () => {
       .send({ name: 'Real Landlord', email: 'real-landlord@example.com', password: 'password123', role: 'LANDLORD' });
     await request(app)
       .post('/api/properties')
-      .set('Authorization', `Bearer ${landlord.body.token}`)
+      .set('Cookie', cookieFrom(landlord))
       .send({ address: '1 Real Street' });
 
     await resetDemoData(prisma);
@@ -81,12 +81,12 @@ describe('demo data', () => {
       .send({ name: 'Real Landlord', email: 'real-landlord@example.com', password: 'password123', role: 'LANDLORD' });
     const property = await request(app)
       .post('/api/properties')
-      .set('Authorization', `Bearer ${landlord.body.token}`)
+      .set('Cookie', cookieFrom(landlord))
       .send({ address: '1 Real Street' });
 
     const res = await request(app)
       .post('/api/properties/join')
-      .set('Authorization', `Bearer ${await login(DEMO_TENANT.email)}`)
+      .set('Cookie', await login(DEMO_TENANT.email))
       .send({ joinCode: property.body.property.joinCode });
     expect(res.status).toBe(403);
   });
@@ -99,7 +99,7 @@ describe('demo data', () => {
 
     const res = await request(app)
       .post('/api/properties/join')
-      .set('Authorization', `Bearer ${tenant.body.token}`)
+      .set('Cookie', cookieFrom(tenant))
       .send({ joinCode: demoProperty.joinCode });
     expect(res.status).toBe(403);
   });

@@ -10,4 +10,10 @@ async function resetDb() {
   await prisma.user.deleteMany();
 }
 
-module.exports = { resetDb, prisma };
+// The "token=..." pair from a login/register response, ready to send back as a Cookie header.
+function cookieFrom(res) {
+  const header = (res.headers['set-cookie'] || []).find((c) => c.startsWith('token='));
+  return header ? header.split(';')[0] : undefined;
+}
+
+module.exports = { resetDb, prisma, cookieFrom };

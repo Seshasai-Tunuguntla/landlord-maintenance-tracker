@@ -3,7 +3,12 @@ const { z } = require('zod');
 const registerSchema = z.object({
   name: z.string().trim().min(1, 'name is required').max(100),
   email: z.string().trim().toLowerCase().email('a valid email is required'),
-  password: z.string().min(8, 'password must be at least 8 characters').max(72),
+  // bcrypt only uses the first 72 *bytes*; anything after is silently ignored. Emoji and
+  // non-English letters take 2-4 bytes each, so count bytes, not characters.
+  password: z
+    .string()
+    .min(8, 'password must be at least 8 characters')
+    .refine((p) => Buffer.byteLength(p, 'utf8') <= 72, 'password is too long (72 bytes at most)'),
   role: z.enum(['TENANT', 'LANDLORD'], { message: 'role must be TENANT or LANDLORD' }),
 });
 

@@ -34,6 +34,19 @@ app.use(express.json());
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
+// TEMPORARY: shows the caller how the server sees their own request; removed after checking proxy setup.
+app.get('/api/debug/ip', (req, res) =>
+  res.json({
+    ip: req.ip,
+    ips: req.ips,
+    xForwardedFor: req.headers['x-forwarded-for'] ?? null,
+    xRealIp: req.headers['x-real-ip'] ?? null,
+    cfConnectingIp: req.headers['cf-connecting-ip'] ?? null,
+    trueClientIp: req.headers['true-client-ip'] ?? null,
+    xVercelForwardedFor: req.headers['x-vercel-forwarded-for'] ?? null,
+  })
+);
+
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/requests', requestRoutes);

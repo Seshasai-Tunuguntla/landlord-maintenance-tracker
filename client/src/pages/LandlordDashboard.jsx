@@ -65,12 +65,18 @@ export default function LandlordDashboard() {
   const [loaded, setLoaded] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  async function loadRequests(activeFilters, pageToLoad = 1) {
-    const data = await api.listRequests({ ...activeFilters, page: pageToLoad, pageSize: PAGE_SIZE });
-    setRequests((current) => (pageToLoad === 1 ? data.requests : [...current, ...data.requests]));
+  const fetchRequests = (activeFilters, pageToLoad) =>
+    api.listRequests({ ...activeFilters, page: pageToLoad, pageSize: PAGE_SIZE });
+
+  function showRequests(data, pageLoaded) {
+    setRequests((current) => (pageLoaded === 1 ? data.requests : [...current, ...data.requests]));
     setTotal(data.total);
-    setPage(pageToLoad);
+    setPage(pageLoaded);
     setSummary(data.summary);
+  }
+
+  async function loadRequests(activeFilters, pageToLoad = 1) {
+    showRequests(await fetchRequests(activeFilters, pageToLoad), pageToLoad);
   }
 
   async function loadProperties() {
@@ -79,7 +85,11 @@ export default function LandlordDashboard() {
   }
 
   useEffect(() => {
-    Promise.all([loadProperties(), loadRequests(NO_FILTERS)])
+    Promise.all([api.listProperties(), fetchRequests(NO_FILTERS, 1)])
+      .then(([propData, reqData]) => {
+        setProperties(propData.properties);
+        showRequests(reqData, 1);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoaded(true));
   }, []);

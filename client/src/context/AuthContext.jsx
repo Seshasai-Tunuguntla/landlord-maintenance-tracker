@@ -1,39 +1,33 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api/client';
-
-const AuthContext = createContext(null);
+import { AuthContext } from './useAuth';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // The login cookie is invisible to page code, so ask the server who (if anyone) is logged in.
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+    localStorage.removeItem('token'); // left over from before the cookie switch
     api
       .me()
       .then((data) => setUser(data.user))
-      .catch(() => localStorage.removeItem('token'))
+      .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
 
   async function login(email, password) {
     const data = await api.login({ email, password });
-    localStorage.setItem('token', data.token);
     setUser(data.user);
   }
 
   async function register(name, email, password, role) {
     const data = await api.register({ name, email, password, role });
-    localStorage.setItem('token', data.token);
     setUser(data.user);
   }
 
-  function logout() {
-    localStorage.removeItem('token');
+  async function logout() {
+    await api.logout().catch(() => {});
     setUser(null);
   }
 
@@ -42,8 +36,4 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }

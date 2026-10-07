@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { useAuth } from './context/AuthContext';
+import { useAuth } from './context/useAuth';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import TenantDashboard from './pages/TenantDashboard';

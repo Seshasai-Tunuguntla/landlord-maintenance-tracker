@@ -1,18 +1,14 @@
 const BASE = '/api';
 
-function getToken() {
-  return localStorage.getItem('token');
-}
-
+// Login lives in an httpOnly cookie the browser sends automatically; page code never sees the token.
 async function request(path, { method = 'GET', body, isFormData = false } = {}) {
   const headers = {};
-  const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
   if (!isFormData && body !== undefined) headers['Content-Type'] = 'application/json';
 
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers,
+    credentials: 'same-origin',
     body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
   });
 
@@ -26,6 +22,7 @@ async function request(path, { method = 'GET', body, isFormData = false } = {}) 
 export const api = {
   register: (payload) => request('/auth/register', { method: 'POST', body: payload }),
   login: (payload) => request('/auth/login', { method: 'POST', body: payload }),
+  logout: () => request('/auth/logout', { method: 'POST' }),
   me: () => request('/auth/me'),
 
   createProperty: (payload) => request('/properties', { method: 'POST', body: payload }),

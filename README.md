@@ -50,22 +50,29 @@ server/   Express API: routes, middleware, Zod schemas, Prisma schema + migratio
 - **Authorization in every handler, not just roles.** `requireRole('LANDLORD')` says *who* may call an endpoint; each handler also checks *ownership* (this landlord owns this property, this tenant filed this request). Tests cover one landlord trying to change another landlord's request.
 - **Status rules live on the server.** Repeating the current status is rejected with a `409`, using a conditional update (`WHERE status <> new`) so two simultaneous clicks can't both write history. Reopening a resolved request is **allowed on purpose**: repairs come back, and the history shows it.
 - **Simple keyword urgency.** It's predictable and easy to explain. The known limitation is that it has no context: "there is *no* gas smell" would still be flagged. That is the trade-off for something a landlord can trust and understand.
-- **Photos in Postgres, not on disk.** Render's free disk is wiped on every restart, so files would vanish. Photos are served from `/api/photos/:id` under a random UUID and limited to raster formats (SVG can carry scripts). In production I'd move them to object storage (S3 or Cloudinary) to keep the database small.
+- **Login in an `httpOnly` cookie, not `localStorage`.** Page scripts can't read the token, so an XSS bug couldn't steal it. The cookie is `SameSite=Strict`, so browsers don't send it on requests started by other sites, which is the CSRF defence (`vercel.app` is on the Public Suffix List, so even other `*.vercel.app` sites count as other sites). This works because the browser only ever talks to one origin: Vercel forwards `/api` to Render.
+- **Private photos, stored in Postgres.** Render's free disk is wiped on every restart, so photos live in the database. A photo can show the inside of someone's home, so only the tenant who filed the request and that property's landlord can open it; everyone else gets `404`. Responses are `Cache-Control: private, no-cache`, so a logged-out browser can't reopen one from cache. Uploads are limited to raster formats (SVG can carry scripts). In production I'd move photos to object storage (S3 or Cloudinary) to keep the database small.
+- **Rate limits keyed on accounts, not IPs.** I measured what the API actually receives: requests pass through Vercel, Cloudflare and Render's own proxy, and `req.ip` had been a Render-internal address, so every visitor shared one counter. Login now limits *failed* attempts per account (10 per 15 min, demo accounts exempt), join codes limit wrong guesses per user (10 per hour), and only sign-up, which has no account yet, keys on the connecting IP, with `trust proxy` set to the measured hop count.
 - **Filtering and paging on the server.** The list endpoint takes `status`, `priority`, `page` and `pageSize`. The landlord's "3 open, 1 urgent" headline is a separate count that ignores filters, so it stays correct while filtering.
 - **A demo that protects itself.** The demo accounts are public, so visitors can change anything. Demo data is rebuilt from a script when the server starts, and whenever a demo account logs in more than 30 minutes after the last reset, so each new visitor gets a clean demo without wiping someone mid-session. The demo tenant can't join other properties, and nobody can join the demo property.
 - **Keeping the free API awake.** Render's free plan sleeps after ~15 idle minutes and takes up to a minute to wake. A scheduled GitHub Action pings it every 10 minutes, and the UI shows a "waking up" message in case it ever sleeps.
 
 ### Known trade-offs I'd address next
 
-- **The JWT is stored in `localStorage`.** That's simpler than cookies, but any successful XSS could read it. React escapes output and the app never injects raw HTML, which lowers the risk. The stronger fix is an `httpOnly`, `SameSite` cookie, plus CSRF protection.
-- **The join endpoint isn't rate-limited.** Join codes are 8 hex characters (about 4.3 billion combinations) and joining requires being logged in, so guessing is impractical. A per-user rate limit would still be cheap insurance.
+- **No email verification or password reset.** Both need an email-sending service. Until then, anyone can sign up with an address they don't own, and a forgotten password can't be recovered.
+- **Sessions can't be revoked early.** Logout clears the cookie, but the JWT itself stays valid until it expires (7 days). A server-side session table or a token version per user would allow "log out everywhere".
+- **Sign-up limits are coarse behind Vercel.** Through Vercel the connecting IP is Vercel's, so sign-up limits are shared per Vercel region. Account-level limits don't depend on this.
+- **Landlords can't correct an Urgent flag.** Keyword matching produces false positives, so a landlord priority override would be the next feature.
+- **Backups.** Neon's free plan keeps a short point-in-time restore window (check its current limits). Real tenant data would need scheduled `pg_dump` backups stored somewhere separate.
 - **One property per tenant.** That fits renters; supporting several would change the tenant dashboard and the join flow.
+- **Dev-only audit warnings.** `npm audit` still lists issues in jest and nodemon, which are test and dev tools that never run in production. npm's suggested "fixes" are downgrades to versions years older. `npm audit --omit=dev` is clean: the one production issue (`deepmerge-ts` inside the Prisma CLI) is fixed with an `overrides` entry, verified by the full test suite.
 
 ## Security and validation
 
-- Passwords hashed with bcrypt; JWT auth with a 7-day expiry.
-- Every request body and query is validated with [Zod](https://zod.dev) (`server/src/validation/schemas.js`), so bad input gets a `400` with a clear message.
-- `helmet` security headers, CORS limited to the origins in `CLIENT_ORIGIN`, and rate limiting on login/register (20 requests / 15 min per IP).
+- Passwords hashed with bcrypt. The length limit counts **bytes**, because bcrypt silently ignores everything after 72 bytes and emoji or non-English letters take 2–4 bytes each.
+- JWT in an `httpOnly`, `SameSite=Strict`, `Secure` (in production) cookie with a 7-day expiry; `POST /api/auth/logout` clears it.
+- Every request body and query is validated with [Zod](https://zod.dev) (`server/src/validation/schemas.js`), so bad input gets a `400` with a clear message. The website also checks photo type and size before uploading.
+- `helmet` security headers, CORS limited to the origins in `CLIENT_ORIGIN`, and the rate limits described above.
 
 ## Testing
 
@@ -74,10 +81,10 @@ cd server
 npm test
 ```
 
-48 tests run against a separate `landlord_maintenance_test` database (create it once with `createdb landlord_maintenance_test`; `pretest` applies migrations automatically):
+55 tests run against a separate `landlord_maintenance_test` database (create it once with `createdb landlord_maintenance_test`; `pretest` applies migrations automatically):
 - `tests/priority.test.js`: urgent-keyword detection
-- `tests/auth.test.js`: register, login and token validation
-- `tests/requests.test.js`: join flow, role and ownership checks, urgency override, status history and rules, filters and paging, photo storage and file-type checks
+- `tests/auth.test.js`: register, login, logout, the cookie's flags, the password byte limit, and per-account lockout
+- `tests/requests.test.js`: join flow and join-code limit, role and ownership checks, urgency override, status history and rules, filters and paging, photo privacy, storage and file-type checks
 - `tests/demo.test.js`: demo reset (undoes visitor changes, never touches real users) and the demo join restrictions
 
 GitHub Actions (`.github/workflows/ci.yml`) runs the same tests against a throwaway Postgres, and lints and builds the client, on every push and pull request.

@@ -6,6 +6,9 @@ import { PRIORITY_LABELS } from '../labels';
 
 const SELECTABLE_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
 const PAGE_SIZE = 20;
+// Mirrors the server's rules so a bad file is caught before a slow upload.
+const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
 export default function TenantDashboard() {
   const [properties, setProperties] = useState([]);
@@ -14,7 +17,8 @@ export default function TenantDashboard() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('MEDIUM');
-  const [photo, setPhoto] = useState(null);
+  const [photo, setPhoto] = useState(null); // { file, previewUrl }
+  const [photoError, setPhotoError] = useState('');
   const [fileInputKey, setFileInputKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -24,16 +28,27 @@ export default function TenantDashboard() {
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  async function loadRequests(pageToLoad = 1) {
-    const data = await api.listRequests({ page: pageToLoad, pageSize: PAGE_SIZE });
-    setRequests((current) => (pageToLoad === 1 ? data.requests : [...current, ...data.requests]));
+  function showRequests(data, pageLoaded) {
+    setRequests((current) => (pageLoaded === 1 ? data.requests : [...current, ...data.requests]));
     setTotal(data.total);
-    setPage(pageToLoad);
+    setPage(pageLoaded);
+  }
+
+  async function loadRequests(pageToLoad = 1) {
+    showRequests(await api.listRequests({ page: pageToLoad, pageSize: PAGE_SIZE }), pageToLoad);
+  }
+
+  function fetchAll() {
+    return Promise.all([api.listProperties(), api.listRequests({ page: 1, pageSize: PAGE_SIZE })]);
+  }
+
+  function showAll([propData, reqData]) {
+    setProperties(propData.properties);
+    showRequests(reqData, 1);
   }
 
   async function loadAll() {
-    const [propData] = await Promise.all([api.listProperties(), loadRequests(1)]);
-    setProperties(propData.properties);
+    showAll(await fetchAll());
   }
 
   async function handleShowMore() {
@@ -48,10 +63,35 @@ export default function TenantDashboard() {
   }
 
   useEffect(() => {
-    loadAll()
+    fetchAll()
+      .then(showAll)
       .catch((err) => setError(err.message))
       .finally(() => setLoaded(true));
   }, []);
+
+  // Free the preview image's memory when the photo changes or the page closes.
+  useEffect(() => () => photo && URL.revokeObjectURL(photo.previewUrl), [photo]);
+
+  function clearPhoto() {
+    setPhoto(null);
+    setFileInputKey((k) => k + 1);
+  }
+
+  function handlePhotoChange(e) {
+    const file = e.target.files[0];
+    setPhotoError('');
+    if (!file) return setPhoto(null);
+
+    if (!PHOTO_TYPES.includes(file.type)) {
+      setPhotoError('That file type isn’t supported. Choose a JPEG, PNG, WebP or GIF photo.');
+      return clearPhoto();
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      setPhotoError(`That photo is ${(file.size / 1024 / 1024).toFixed(1)} MB. Photos can be up to 5 MB.`);
+      return clearPhoto();
+    }
+    setPhoto({ file, previewUrl: URL.createObjectURL(file) });
+  }
 
   async function handleJoin(e) {
     e.preventDefault();
@@ -77,14 +117,13 @@ export default function TenantDashboard() {
       formData.append('title', title);
       formData.append('description', description);
       formData.append('priority', priority);
-      if (photo) formData.append('photo', photo);
+      if (photo) formData.append('photo', photo.file);
 
       await api.createRequest(formData);
       setTitle('');
       setDescription('');
       setPriority('MEDIUM');
-      setPhoto(null);
-      setFileInputKey((k) => k + 1);
+      clearPhoto();
       setMessage('Request sent to your landlord.');
       await loadAll();
     } catch (err) {
@@ -189,10 +228,24 @@ export default function TenantDashboard() {
               <input
                 key={fileInputKey}
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                onChange={(e) => setPhoto(e.target.files[0] || null)}
+                accept={PHOTO_TYPES.join(',')}
+                onChange={handlePhotoChange}
+                aria-describedby={photoError ? 'photo-error' : undefined}
               />
             </label>
+            {photoError && (
+              <p className="field-error" id="photo-error" role="alert">
+                {photoError}
+              </p>
+            )}
+            {photo && (
+              <div className="photo-preview">
+                <img src={photo.previewUrl} alt="The photo you chose" />
+                <button type="button" className="btn-link" onClick={clearPhoto}>
+                  Remove photo
+                </button>
+              </div>
+            )}
             <button type="submit" className="btn" disabled={submitting}>
               {submitting ? 'Sending…' : 'Send request'}
             </button>

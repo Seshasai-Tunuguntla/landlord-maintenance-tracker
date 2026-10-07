@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
 // Public demo accounts so visitors (e.g. recruiters) can try the app without signing up.
 const DEMO_ACCOUNTS = {
@@ -52,7 +52,11 @@ export default function AuthLayout({ children }) {
               </button>
             ))}
           </div>
-          {loadingRole && <p className="demo-note">The free server can take up to a minute to wake up.</p>}
+          <p className="demo-note">
+            {loadingRole
+              ? 'The free server can take up to a minute to wake up.'
+              : 'Shared demo data resets for each new visitor, so feel free to change things.'}
+          </p>
           {error && <p className="demo-error" role="alert">{error}</p>}
         </div>
 
